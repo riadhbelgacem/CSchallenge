@@ -1,6 +1,7 @@
 import React from 'react';
 import { ModuleCard } from '@/components/ui/module-card';
 import { Clock, Sparkles, Target, FileText } from 'lucide-react';
+import { useRouter } from 'next/router';
 
 // TODO: Replace with real activity fetch
 const mockActivity = [
@@ -17,6 +18,7 @@ const getActivityIcon = (type: string) => {
 };
 
 export const ActivityFeed: React.FC = () => {
+  const router = useRouter();
   return (
     <ModuleCard 
       title="Recent Activity" 
@@ -30,7 +32,16 @@ export const ActivityFeed: React.FC = () => {
       ) : (
         <ul className="space-y-2">
           {mockActivity.map(a => (
-            <li key={a.id} className="flex items-center gap-3 p-2 rounded-lg border border-black/5 hover:bg-black/5 transition-colors">
+            <li
+              key={a.id}
+              onClick={() => {
+                // Simple mapping: enhancement -> resume page, optimization -> jobs page
+                if (a.type === 'enhancement') router.push('/resume/upload');
+                else if (a.type === 'optimization') router.push('/jobs');
+                else router.push('/resume/upload');
+              }}
+              className="flex items-center gap-3 p-2 rounded-lg border border-black/5 hover:bg-black/5 transition-colors cursor-pointer"
+            >
               <div className="flex-shrink-0 w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
                 {getActivityIcon(a.type)}
               </div>

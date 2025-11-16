@@ -3,9 +3,11 @@ import { ModuleCard } from '@/components/ui/module-card';
 import { useResumes } from '@/lib/hooks/useResumes';
 import { Button } from '@/components/ui/button';
 import { FileText, Plus, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/router';
 
 export const RecentResumes: React.FC = () => {
   const { data, loading, error, creating, createPlatformResume } = useResumes(5);
+  const router = useRouter();
 
   return (
     <ModuleCard 
@@ -45,7 +47,11 @@ export const RecentResumes: React.FC = () => {
           ) : (
             <ul className="space-y-2">
               {data.map(r => (
-                <li key={r.id} className="group flex items-center gap-3 p-2 rounded-lg border border-black/5 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer">
+                <li
+                  key={r.id}
+                  onClick={() => router.push(`/resume/${encodeURIComponent(r.id)}/preview`)}
+                  className="group flex items-center gap-3 p-2 rounded-lg border border-black/5 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer"
+                >
                   <div className="flex-shrink-0 w-8 h-8 rounded bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                     <FileText className="w-4 h-4 text-primary" />
                   </div>

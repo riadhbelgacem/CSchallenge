@@ -1,7 +1,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
-import { AppShell } from '@/components/dashboard/AppShell';
+import AppShell from '@/components/dashboard/AppShell';
 import { WelcomeModule } from '@/components/dashboard/WelcomeModule';
 import { ProfileSummary } from '@/components/dashboard/ProfileSummary';
 import { UsageMeters } from '@/components/dashboard/UsageMeters';

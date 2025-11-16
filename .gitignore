@@ -1,0 +1,23 @@
+# Global ignores
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+.DS_Store
+*.log
+
+# Environment files (keep examples/templates)
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.template
+
+# Python
+**/__pycache__/
+**/*.pyc
+
+# IDE/editor
+.vscode/
+.idea/
+*.iml

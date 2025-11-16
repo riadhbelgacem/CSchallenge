@@ -5,40 +5,52 @@ import CredentialsProvider from "next-auth/providers/credentials";
 /**
  * Refreshes the access token using the refresh token
  */
+let refreshPromise: Promise<any> | null = null;
+let lastRefreshedToken: any | null = null;
+
 async function refreshAccessToken(token: any) {
   try {
     console.log('[NextAuth] Refreshing access token...');
-    
-    const response = await fetch(
-      `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: process.env.KEYCLOAK_CLIENT_ID!,
-          client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
-          grant_type: 'refresh_token',
-          refresh_token: token.refreshToken,
-        }),
-      }
-    );
+    if (!refreshPromise) {
+      refreshPromise = (async () => {
+        const response = await fetch(
+          `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: process.env.KEYCLOAK_CLIENT_ID!,
+              client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+              grant_type: 'refresh_token',
+              refresh_token: token.refreshToken,
+            }),
+          }
+        );
 
-    const refreshedTokens = await response.json();
+        const refreshedTokens = await response.json();
 
-    if (!response.ok) {
-      console.error('[NextAuth] Token refresh failed:', refreshedTokens);
-      throw refreshedTokens;
+        if (!response.ok) {
+          console.error('[NextAuth] Token refresh failed:', refreshedTokens);
+          throw refreshedTokens;
+        }
+
+        console.log('[NextAuth] ✅ Token refreshed successfully');
+
+        lastRefreshedToken = {
+          ...token,
+          accessToken: refreshedTokens.access_token,
+          idToken: refreshedTokens.id_token,
+          expiresAt: Math.floor(Date.now() / 1000) + refreshedTokens.expires_in,
+          refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
+        };
+        return lastRefreshedToken;
+      })().finally(() => {
+        refreshPromise = null;
+      });
     }
 
-    console.log('[NextAuth] ✅ Token refreshed successfully');
-
-    return {
-      ...token,
-      accessToken: refreshedTokens.access_token,
-      idToken: refreshedTokens.id_token,
-      expiresAt: Math.floor(Date.now() / 1000) + refreshedTokens.expires_in,
-      refreshToken: refreshedTokens.refresh_token ?? token.refreshToken, // Use new refresh token or keep old one
-    };
+    const updated = await refreshPromise;
+    return updated ?? { ...token };
   } catch (error) {
     console.error('[NextAuth] ❌ Error refreshing access token:', error);
 
@@ -82,7 +94,8 @@ export const authOptions: NextAuthOptions = {
               client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
               username: credentials.email,
               password: credentials.password,
-              scope: 'openid email profile'
+              // Request offline_access to get a stable refresh token in dev
+              scope: 'openid email profile offline_access'
             }),
           });
 
@@ -92,6 +105,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           const tokens = await tokenResponse.json();
+          console.log('[NextAuth] Credentials login tokens received: expires_in=', tokens.expires_in);
           
           // Get user info from Keycloak
           const userInfoResponse = await fetch(`${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo`, {
@@ -113,6 +127,8 @@ export const authOptions: NextAuthOptions = {
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token,
             idToken: tokens.id_token,
+            // Pass back token lifetime so jwt callback can set accurate expiry
+            expiresIn: tokens.expires_in,
           };
         } catch (error) {
           console.error('Authentication error:', error);
@@ -123,32 +139,33 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, account, user }) {
-      // Initial sign in - store tokens
+      // Initial sign in - differentiate provider types
       if (account && user) {
-        console.log('[NextAuth] Initial sign in, storing tokens');
-        return {
-          ...token,
-          accessToken: account.access_token,
-          refreshToken: account.refresh_token,
-          idToken: account.id_token,
-          expiresAt: account.expires_at,
-          id: user.id,
-          provider: account.provider, // Store provider for logout
-        };
-      }
-      
-      // Handle credentials provider tokens
-      if (user && account?.provider === 'credentials') {
-        console.log('[NextAuth] Credentials login, storing tokens');
-        return {
-          ...token,
-          accessToken: (user as any).accessToken,
-          refreshToken: (user as any).refreshToken,
-          idToken: (user as any).idToken,
-          expiresAt: Math.floor(Date.now() / 1000) + 1800, // Default 30 minutes
-          id: user.id,
-          provider: 'credentials',
-        };
+        if (account.provider === 'credentials') {
+          console.log('[NextAuth] Initial credentials sign in, mapping user tokens');
+          const nowSec = Math.floor(Date.now() / 1000);
+          const expiresIn = (user as any).expiresIn ?? 1800;
+          return {
+            ...token,
+            accessToken: (user as any).accessToken,
+            refreshToken: (user as any).refreshToken,
+            idToken: (user as any).idToken,
+            expiresAt: nowSec + expiresIn,
+            id: user.id,
+            provider: 'credentials',
+          };
+        } else {
+          console.log('[NextAuth] Initial OAuth sign in, storing account tokens');
+          return {
+            ...token,
+            accessToken: account.access_token,
+            refreshToken: account.refresh_token,
+            idToken: account.id_token,
+            expiresAt: account.expires_at,
+            id: user.id,
+            provider: account.provider,
+          };
+        }
       }
 
       // Return previous token if the access token has not expired yet
@@ -163,6 +180,11 @@ export const authOptions: NextAuthOptions = {
 
       // Token has expired or is about to expire, try to refresh it
       console.log('[NextAuth] Token expired or expiring soon, refreshing...');
+      // Guard: if we have no refresh token, avoid infinite invalid_grant loop
+      if (!token.refreshToken) {
+        console.warn('[NextAuth] No refresh token available; cannot refresh. Forcing sign-in.');
+        return { ...token, error: 'MissingRefreshToken' };
+      }
       return refreshAccessToken(token);
     },
     async session({ session, token }) {

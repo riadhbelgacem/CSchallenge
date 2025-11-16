@@ -1,6 +1,7 @@
 import React from 'react';
 import { ModuleCard } from '@/components/ui/module-card';
 import { Target, TrendingUp, Briefcase } from 'lucide-react';
+import { useRouter } from 'next/router';
 
 // TODO: Replace with real matches fetch
 const mockMatches = [
@@ -9,6 +10,7 @@ const mockMatches = [
 ];
 
 export const MatchesPreview: React.FC = () => {
+  const router = useRouter();
   return (
     <ModuleCard 
       title="Top Matches" 
@@ -25,7 +27,11 @@ export const MatchesPreview: React.FC = () => {
           {mockMatches.map(m => {
             const scoreColor = m.score >= 80 ? 'text-green-600' : m.score >= 60 ? 'text-primary' : 'text-orange-600';
             return (
-              <li key={m.id} className="group flex items-center gap-3 p-2 rounded-lg border border-black/5 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer">
+              <li
+                key={m.id}
+                onClick={() => router.push(`/jobs/${encodeURIComponent(m.id)}`)}
+                className="group flex items-center gap-3 p-2 rounded-lg border border-black/5 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer"
+              >
                 <div className="flex-shrink-0 w-8 h-8 rounded bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                   <Briefcase className="w-4 h-4 text-primary" />
                 </div>

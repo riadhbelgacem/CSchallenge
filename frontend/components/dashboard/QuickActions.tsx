@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Wand2, Upload, Briefcase, Zap } from 'lucide-react';
 import { ModuleCard } from '@/components/ui/module-card';
+import { useRouter } from 'next/router';
 
 const ActionButton: React.FC<{ icon: React.ReactNode; title: string; desc: string; onClick?: () => void }> = 
   ({ icon, title, desc, onClick }) => (
@@ -20,6 +21,9 @@ const ActionButton: React.FC<{ icon: React.ReactNode; title: string; desc: strin
   );
 
 export const QuickActions: React.FC = () => {
+  const router = useRouter();
+  const [resumeId, setResumeId] = useState('');
+
   return (
     <ModuleCard 
       title="Quick Actions" 
@@ -30,17 +34,45 @@ export const QuickActions: React.FC = () => {
           icon={<Upload className="w-5 h-5 text-primary" />}
           title="Upload Resume"
           desc="Add a new resume to optimize"
+          onClick={() => router.push('/resume/upload')}
         />
         <ActionButton 
           icon={<Wand2 className="w-5 h-5 text-primary" />}
           title="Enhance Resume"
           desc="AI-powered improvements"
+          onClick={() => {
+            if (!resumeId.trim()) {
+              // If no resume ID entered yet, focus input below
+              const el = document.getElementById('quick-actions-resume-id');
+              el?.focus();
+              return;
+            }
+            router.push(`/resume/${encodeURIComponent(resumeId.trim())}/enhance`);
+          }}
         />
         <ActionButton 
           icon={<Briefcase className="w-5 h-5 text-primary" />}
           title="Optimize for Job"
           desc="Tailor for specific role"
         />
+        <div className="pt-2 flex items-center gap-2">
+          <input
+            id="quick-actions-resume-id"
+            value={resumeId}
+            onChange={(e) => setResumeId(e.target.value)}
+            placeholder="Resume ID"
+            className="h-8 w-40 rounded-md border border-gray-300 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <Button
+            variant="default"
+            className="h-8 px-3 text-xs"
+            onClick={() => {
+              if (resumeId.trim()) {
+                router.push(`/resume/${encodeURIComponent(resumeId.trim())}/preview`);
+              }
+            }}
+          >Preview</Button>
+        </div>
       </div>
     </ModuleCard>
   );

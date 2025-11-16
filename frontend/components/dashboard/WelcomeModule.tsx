@@ -1,10 +1,12 @@
 import React from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/router';
 import { Wand2, Upload, Briefcase, Sparkles } from 'lucide-react';
 
 export const WelcomeModule: React.FC = () => {
   const { data: session } = useSession();
+  const router = useRouter();
   const firstName = session?.user?.name?.split(' ')[0] || session?.user?.email?.split('@')[0];
   const timeOfDay = new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening';
   
@@ -30,13 +32,13 @@ export const WelcomeModule: React.FC = () => {
         </div>
         
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
-          <Button size="lg" className="sm:w-auto w-full shadow-sm">
+          <Button size="lg" className="sm:w-auto w-full shadow-sm" onClick={() => router.push('/resume/upload')}>
             <Upload className="w-4 h-4" /> Upload Resume
           </Button>
-          <Button size="lg" variant="secondary" className="sm:w-auto w-full">
+          <Button size="lg" variant="secondary" className="sm:w-auto w-full" onClick={() => router.push('/resume/upload') /* Could prompt for ID later */}>
             <Wand2 className="w-4 h-4" /> Enhance Now
           </Button>
-          <Button size="lg" variant="outline" className="sm:w-auto w-full">
+          <Button size="lg" variant="outline" className="sm:w-auto w-full" onClick={() => router.push('/jobs') }>
             <Briefcase className="w-4 h-4" /> Find Jobs
           </Button>
         </div>
