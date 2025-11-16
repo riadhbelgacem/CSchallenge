@@ -96,7 +96,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       USER_SERVICE_URL: http://user-service:8081
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/resume-platform
+      JOB_MATCHER_SERVICE_URL: http://job-matcher:8000
+      KEYCLOAK_REALM: Tsyp13CS
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/Tsyp13CS
     networks:
       - microservices
     depends_on:
@@ -121,14 +123,14 @@ services:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       KEYCLOAK_SERVER_URL: http://keycloak:8080
-      KEYCLOAK_REALM: resume-platform
+      KEYCLOAK_REALM: Tsyp13CS
       KEYCLOAK_CLIENT_ID: user-service
       KEYCLOAK_CLIENT_SECRET: nBoSMgoREqOXTWbEOs1udbsvbnY75T8o
       KEYCLOAK_ADMIN_USERNAME: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       # Use keycloak service name - Spring will validate JWT keys, not issuer URL
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/resume-platform
-      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/resume-platform/protocol/openid-connect/certs
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/Tsyp13CS
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/Tsyp13CS/protocol/openid-connect/certs
     networks:
       - microservices
     depends_on:
@@ -173,6 +175,39 @@ services:
       interval: 10s
       timeout: 5s
       retries: 30
+
+  job-matcher:
+    container_name: ms_job_matcher
+    build:
+      context: ./Services/JobsService/job_matcher
+      dockerfile: Dockerfile
+    ports:
+      - "8010:8000"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      ENVIRONMENT: docker
+      # AI API Keys
+      MODEL: gemini/gemini-flash-latest
+      GEMINI_API_KEY: AIzaSyBhSal3MorZTbGInNjjiPpy2ROwB8mUWJA
+      FIRECRAWL_API_KEY: fc-089b757a7a3f41b5b8cb4c7e6418d9e5
+      # Resume Service Configuration (Future)
+      RESUME_SERVICE_URL: http://resume-service:8083
+      RESUME_SERVICE_ENABLED: "false"
+      # MongoDB Configuration
+      MONGODB_URI: mongodb://mongo:mongo@mongodb:27017
+      MONGODB_DATABASE: job_matcher_db
+    networks:
+      - microservices
+    depends_on:
+      - mongodb
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
   microservices:
