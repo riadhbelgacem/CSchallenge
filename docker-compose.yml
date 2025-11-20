@@ -97,6 +97,7 @@ services:
       REDIS_PORT: 6379
       USER_SERVICE_URL: http://user-service:8081
       JOB_MATCHER_SERVICE_URL: http://job-matcher:8000
+      AI_RESUME_SERVICE_URL: http://ai-resume-enhancer:8080
       KEYCLOAK_REALM: Tsyp13CS
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/Tsyp13CS
     networks:
@@ -190,9 +191,9 @@ services:
       MODEL: gemini/gemini-flash-latest
       GEMINI_API_KEY: AIzaSyBhSal3MorZTbGInNjjiPpy2ROwB8mUWJA
       FIRECRAWL_API_KEY: fc-089b757a7a3f41b5b8cb4c7e6418d9e5
-      # Resume Service Configuration (Future)
-      RESUME_SERVICE_URL: http://resume-service:8083
-      RESUME_SERVICE_ENABLED: "false"
+      # Resume Service Configuration
+      RESUME_SERVICE_URL: http://ai-resume-enhancer:8080
+      RESUME_SERVICE_ENABLED: "true"
       # MongoDB Configuration
       MONGODB_URI: mongodb://mongo:mongo@mongodb:27017
       MONGODB_DATABASE: job_matcher_db
@@ -201,9 +202,49 @@ services:
     depends_on:
       - mongodb
       - redis
+      - ai-resume-enhancer
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ai-resume-enhancer:
+    container_name: ms_ai_resume_enhancer
+    build:
+      context: ./Services/ai-resume-enhancer
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8080"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      FASTAPI_HOST: "0.0.0.0"
+      FASTAPI_PORT: "8080"
+      DEBUG: "true"
+      # MongoDB Configuration
+      MONGO_URL: mongodb://mongo:mongo@mongodb:27017/?authSource=admin
+      MONGO_DB_NAME: resume_db
+      # Redis Configuration
+      REDIS_URL: redis://redis:6379/0
+      # AI API Keys
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_API_URL: https://api.groq.com/openai/v1/chat/completions
+      # Pinecone (optional)
+      PINECONE_API_KEY: ${PINECONE_API_KEY:-}
+      PINECONE_ENV: ${PINECONE_ENV:-}
+      PINECONE_INDEX_NAME: resumes-index
+      # Feature toggles
+      ENABLE_CREWAI: "false"
+    networks:
+      - microservices
+    depends_on:
+      - mongodb
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
